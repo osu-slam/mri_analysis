@@ -1,0 +1,4 @@
+# MATLAB autosave files # 
+*.m~
+*.sh.swp
+*.png

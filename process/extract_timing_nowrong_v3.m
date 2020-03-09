@@ -22,6 +22,7 @@
 %   encoding onsets. 
 % 03/02/20  We are dropping the first TR of each event. Updating to reflect
 %   this. 
+% 03/09/20  Added 'all' field to help determine accuracy during each run. 
 
 function onsets = extract_timing_nowrong_v3(subj, study)
 %% Parameters and Preallocation
@@ -32,6 +33,7 @@ end
 %% Parameters and path
 dir_subj = fullfile(study.path, 'data', subj.name);
 events_each = 2; 
+events_sent = 24; 
 events_all  = 28; 
  
 scan = study.scan; 
@@ -39,6 +41,7 @@ scan = study.scan;
 onsets = struct(... % Needs to be updated for each experiment. 
     'NOI', [], ... 
     'SIL', [], ... 
+    'sentence_all', [], ... 
     'OR_rate075_clear', [], ... 
     'OR_rate075_snr2',  [], ...
     'OR_rate075_snrn2', [], ...
@@ -104,7 +107,11 @@ disp('Done!')
 % Needs to be updated per experiment. 
 for cc = 1:numCons
     thiscon = conNames{cc}; 
-    onsets.(thiscon) = nan(events_each, subj.runs); 
+    if strcmp(thiscon, 'sentences_all')
+        onsets.(thiscon) = nan(events_sent, subj.runs); 
+    else
+        onsets.(thiscon) = nan(events_each, subj.runs); 
+    end
 end
 
 %% Grab the correct events
@@ -166,6 +173,12 @@ for bb = blocks
                 end
 
             elseif isstrprop(sentence{ev}, 'digit') % sentence presentation
+                % Put all correct sentences into structure
+                thiscond = strcmp(conNames, 'sentence_all'); 
+                idx_cond(thiscond) = idx_cond(thiscond) + 1; 
+                onsets.sentence_all(idx_cond(thiscond), bb) = ...
+                    scan.order(idx); 
+                
                 % Construct what event it was
                 thissent = [syntax{ev} 'R_']; % start with syntax 
 

@@ -23,6 +23,8 @@
 %   encoding onsets. 
 % 03/02/20  We are dropping the first TR of each event. Updating to reflect
 %   this. 
+% 03/09/20  Added 'perfect' output to represent any blocks with perfect
+%   accuracy. This will be used to select regressors. 
 
 function onsets = extract_timing_all(subj, study)
 %% Parameters and Preallocation
@@ -139,16 +141,22 @@ correct(~blocks) = false;
 
 %% Get onset info for each event
 blocks = 1:subj.runs; 
+perfect = false(size(blocks)); 
 
 for bb = blocks
     %% Create regressor
     c = correct(T.BLOCK == bb); % for creating a regressor
-    c = repelem(c, study.scan.epis-1); 
-    
-    fname = fullfile(dir_reg, ['incorrect_run' num2str(bb) '.txt']); 
-    fid = fopen(fname, 'w'); 
-    fprintf(fid, '%d\n', ~c); 
-    fclose(fid); 
+    if all(c)
+        disp(['Perfect accuracy in block ' num2str(bb) '!!!'])
+        perfect(bb) = true; 
+    else
+        c = repelem(c, study.scan.epis-1); 
+
+        fname = fullfile(dir_reg, ['incorrect_run' num2str(bb) '.txt']); 
+        fid = fopen(fname, 'w'); 
+        fprintf(fid, '%d\n', ~c); 
+        fclose(fid); 
+    end
     
     %% Create onsets
     t = T(T.BLOCK == bb, :); 
@@ -215,6 +223,6 @@ if exist(fname, 'file')
     delete(fname)
 end
 
-save(fname, 'onsets', 'accuracy')
+save(fname, 'onsets', 'accuracy', 'perfect')
 
 end

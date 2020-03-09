@@ -34,14 +34,15 @@ for ii = 1:length(subj)
     %% Extract timing
 %     disp('Extracting timing from behav for lang...')
 % %     cd(dir_process); extract_timing_nowrong_v3(subj(ii), study);
-%     cd(dir_process); extract_timing_all(subj(ii), study); 
+%     cd(dir_process); extract_timing_all(thissubj, study); 
 %     disp('Done!')
         
     %% Specify and estimate GLM using FIR
-    disp(['Specifying 1st level GLM for subject ' thissubj.name '.'])
-    cd(dir_process); clear_spm_mat(thissubj, study, 3)
-    cd(dir_process); spec_est_GLM(thissubj, study, 3, 0)
-    disp('Done!')
+%     disp(['Specifying 1st level GLM for subject ' thissubj.name '.'])
+%     cd(dir_process); clear_spm_mat(thissubj, study, 3)
+%     cd(dir_process); spec_est_GLM(thissubj, study, 3, 1, 1)
+%     % Input (thissubj, study, design#, do first run, do interactive)
+%     disp('Done!')
     
     %% Build contrasts
     disp(['Building contrasts for subject ' thissubj.name '.'])

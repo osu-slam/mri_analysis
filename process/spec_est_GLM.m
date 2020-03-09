@@ -14,16 +14,25 @@
 %   run...
 % 03/05/20  Added "incorrect" regressor when we model all events. Also
 %   added flag for "do first run". 
+% 03/09/20  Added "perfect" output to extract_timing_all to identify when
+%   subject had perfect accuracy during a block, thus creating an empty
+%   correct regressor. 
 
 function spec_est_GLM(varargin)
 %% Check input
 subj = varargin{1}; 
 study = varargin{2}; 
 design = varargin{3}; 
-if length(varargin) > 3
+if length(varargin) > 3 % do first run
     do_first_run = varargin{4}; 
 else
     do_first_run = 1; 
+end
+
+if length(varargin) > 4 % interactive
+    do_interactive = varargin{5};
+else
+    do_interactive = 0; 
 end
 
 if ~isstruct(subj) || length(subj) ~= 1
@@ -158,6 +167,10 @@ for dd = design
 
         mkdir(dir_thisdesign)
         spm_jobman('run',matlabbatch);
+        if do_interactive
+            disp('Waiting for OK to continue!'); pause
+        end
+        
         fg = spm_figure('FindWin','Graphics');
         figname = ['design_' thisdesign.name '_1run.png']; 
         saveas(fg, figname)
@@ -244,8 +257,11 @@ for dd = design
         end
         
         if ~thisdesign.correct 
-            multiRegs(idx) = string(fullfile(dir_reg, ['incorrect_run' num2str(runs(rr)) '.txt']));
-            idx = idx + 1; 
+            if ~perfect(runs(rr)) % from extract_timing_all!
+                multiRegs(idx) = string(fullfile(dir_reg, ['incorrect_run' num2str(runs(rr)) '.txt']));
+                idx = idx + 1; 
+            end
+            
         end
         
         multiRegs = cellstr(multiRegs');
@@ -270,6 +286,10 @@ for dd = design
     
     mkdir(dir_thisdesign)
     spm_jobman('run',matlabbatch);
+    if do_interactive
+        disp('Waiting for OK to continue'); pause
+    end
+    
     fg = spm_figure('FindWin','Graphics');
     figname = ['design_' thisdesign.name '.png']; 
     saveas(fg, figname)
