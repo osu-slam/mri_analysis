@@ -7,6 +7,8 @@
 % 02/24/20: No silent event anymore, updating contrasts. 
 % 02/29/20: Added nscans param to subjects--number of images BEFORE
 %   dropping. Updated scan info with a few other details. 
+% 03/09/20: Added subjects 2 and 3, added appa field to distinguish between
+%   AP-PA files acquired for RSFC and task-based EPIs. 
 
 %% Study info
 study.name = 'YA_FST'; 
@@ -529,15 +531,18 @@ subj(1).runs   = 6;
 subj(1).drop   = [3 4]; 
 subj(1).rename = {};
 subj(1).nscans = 117; % number of scans, BEFORE dropping
+subj(1).appa   = {}; 
 
 subj(2).name   = '5976YL'; 
 subj(2).runs   = 6; 
 subj(2).drop   = []; 
 subj(2).rename = {}; 
-subj(2).nscans = 117; 
+subj(2).nscans = 117;
+subj(2).appa   = {'AP_s012', 'PA_s013'}; 
 
 subj(3).name   = '5977YL'; 
 subj(3).runs   = 6; 
 subj(3).drop   = []; 
 subj(3).rename = {}; 
 subj(3).nscans = 117; 
+subj(3).appa   = {'AP_s012', 'PA_s013'}; 

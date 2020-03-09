@@ -6,25 +6,17 @@
 % 02/05/20 -- Forked for YA_FST
 % 02/10/20 -- V1 done and run for first 3 subjects. MJH
 % 02/21/20 -- New design with shifted onsets. 
+% 03/09/20 -- Updated (most) code to follow subj/study convention!
 
 clc; clearvars
 
 %% Pathing
-dir_batch = pwd;
 dir_setup = fullfile(pwd, 'setup');
-
-cd ..
-dir_data  = fullfile(pwd, 'data');
-
-cd(dir_batch)
 YA_FST_params
 
 for ii = 2:length(subj)
     %% Subject-specific parameters
     thissubj = subj(ii);
-    
-    %% Pathing
-    dir_subj = fullfile(dir_data, thissubj.name);
     disp(['Unpacking ' thissubj.name '...'])
     
     %% Make directories
@@ -46,13 +38,19 @@ for ii = 2:length(subj)
     %% Rename files
 %     if ~isempty(subj(ii).rename)
 %         disp('Renaming necessary runs...')
-%         cd(dir_setup); rename_files
+%         cd(dir_setup); rename_files % functional data
+%         disp('Done!')
+%     end
+    
+%     if ~isempty(subj(ii).appa)
+%         disp('Renaming AP-PA images...')
+%         cd(dir_setup); rename_appa(thissubj, study)
 %         disp('Done!')
 %     end
     
     %% Make physio regressors
 %     disp('Making physio regressors...')
-%     cd(dir_setup); make_phys_reg(subj(ii), study)
+%     cd(dir_setup); make_phys_reg(thissubj, study)
 %     disp('Done!')
     
     %% Make fieldmap
@@ -62,6 +60,6 @@ for ii = 2:length(subj)
 %     disp('Creating fieldmap with FSL...')
 %     cd(dir_batch); system(cmd); 
 %     disp('Done!')
-
-    disp(['Finished unpacking ' thissubj.name '.'])
+% 
+%     disp(['Finished unpacking ' thissubj.name '.'])
 end
