@@ -17,6 +17,7 @@
 % 03/09/20  Added "perfect" output to extract_timing_all to identify when
 %   subject had perfect accuracy during a block, thus creating an empty
 %   correct regressor. 
+% 03/19/20  Added flag for CONN regressors
 
 function spec_est_GLM(varargin)
 %% Check input
@@ -149,12 +150,17 @@ for dd = design
         idx = 2; 
 
         if thisdesign.physio
-            multiRegs(idx) = string([dir_reg filesep 'physio_1st_' study.runname '1_00001.txt']);
+            multiRegs(idx) = string([dir_reg filesep 'physio_1st_' study.runname '1_00007.txt']);
             idx = idx + 1; 
         end
 
         if ~thisdesign.correct 
             multiRegs(idx) = string(fullfile(dir_reg, 'incorrect_run1.txt'));
+            idx = idx + 1; 
+        end
+        
+        if thisdesign.conn
+            multiRegs(idx) = string(fullfile(dir_reg, ['dp_trimmed_pc2_' study.prefix study.runname '1_00007.txt']));
             idx = idx + 1; 
         end
 
@@ -252,7 +258,7 @@ for dd = design
         multiRegs(1) = string([dir_reg filesep 'rp_' study.runname num2str(runs(rr)) '_00007.txt']);
         idx = 2; 
         if thisdesign.physio
-            multiRegs(idx) = string([dir_reg filesep 'physio_1st_' study.runname num2str(runs(rr)) '_00001.txt']);
+            multiRegs(idx) = string([dir_reg filesep 'physio_1st_' study.runname num2str(runs(rr)) '_00007.txt']);
             idx = idx + 1; 
         end
         
@@ -262,6 +268,11 @@ for dd = design
                 idx = idx + 1; 
             end
             
+        end
+        
+        if thisdesign.conn
+            multiRegs(idx) = string(fullfile(dir_reg, ['dp_trimmed_pc2_' study.prefix study.runname num2str(runs(rr)) '_00007.txt']));
+            idx = idx + 1; 
         end
         
         multiRegs = cellstr(multiRegs');

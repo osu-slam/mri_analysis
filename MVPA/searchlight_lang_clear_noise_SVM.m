@@ -10,8 +10,9 @@
 % 02/17/20 -- Forked for language (clear) vs noise classification. 
 % 02/18/20 -- Found error in HIT/FA logic! Fixed. 
 % 02/25/20 -- New design. Does it work?
+% 03/10/20 -- Cloned for SVM
 
-function searchlight_lang_clear_noise(subj, study, dd)
+function searchlight_lang_clear_noise_SVM(subj, study, dd)
 %% Check input
 if ~isstruct(subj) || length(subj) ~= 1
     error('Input (subj, study, dd) where subj is a SINGLE struct')
@@ -26,6 +27,14 @@ if ~isnumeric(dd)
 end
 
 %% Pathing and some parameters
+if ~contains(path, 'libsvm-3.24')
+    disp('Adding libSVM to path!')
+    home = pwd; 
+    cd ../../../libsvm-3.24/matlab
+    addpath(pwd); 
+    cd(home)
+end
+
 radius = study.mvpa.radius;
 
 dir_subj = fullfile(study.path, 'data', subj.name); 
@@ -126,22 +135,20 @@ for fold = blocks % for each fold...
         Labels_trn = [Labels_trn_lang; Labels_trn_noi];
         Labels_tst = [Labels_tst_lang; Labels_tst_noi];
 
-%         %%%%%%%%LibSVM%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%         model = fitcsvm(Instances_trn,Labels_trn);
-%         [Outputs_testing, ~] = predict(model, Instances_tst);
-%         testing_Prop_correct=accuracy(1,1);
-%         cross_validation_mats(center_x,center_y,center_z,fold) = ... 
-%             (testing_Prop_correct -12.5)/100;
-%         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%LibSVM%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        model = svmtrain(Labels_trn, Instances_trn, ['-q', 'libsvm_options']);
+        Outputs_testing = svmpredict(Labels_tst, Instances_tst, model, ...
+            ['-q','libsvm_options']);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         %%%%%%%%%%%GNB%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        nb = fitcnb(Instances_trn, Labels_trn);
-%         nb = NaiveBayes.fit(Instances_trn,Labels_trn);
-        Outputs_testing = predict(nb, Instances_tst);
+%         nb = fitcnb(Instances_trn, Labels_trn);
+% %         nb = NaiveBayes.fit(Instances_trn,Labels_trn);
+%         Outputs_testing = predict(nb, Instances_tst);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         % Accuracy
-        num_testing_points   = size(Instances_tst,1);
+        num_testing_points = size(Instances_tst,1);
         testing_Prop_correct = sum(Outputs_testing == Labels_tst) / num_testing_points;
         crossval_acc_vector(voxel_num) = testing_Prop_correct-0.5;
 
@@ -154,7 +161,7 @@ for fold = blocks % for each fold...
     end  %%% End of parfor loop through voxel spheres
 
     %% Merge vectors from each fold into matrices
-    crossval_acc_mat_folds(fold, :)      = crossval_acc_vector;
+    crossval_acc_mat_folds(fold, :) = crossval_acc_vector;
 
 end  %%% End of loop through folds
 
@@ -170,7 +177,7 @@ file = fullfile(dir_design, 'beta_0001.nii');
 V = spm_vol(file);
 
 V.fname = fullfile(dir_data_MVPA, ... 
-    [subj.name '_' design.name '_beta_GNB_lng_clear_noi_rad' num2str(radius) '.nii']);  
+    [subj.name '_' design.name '_beta_SVM_lng_clear_noi_rad' num2str(radius) '.nii']);  
 spm_write_vol(V, acc);
 
 end

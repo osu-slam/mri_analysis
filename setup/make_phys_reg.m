@@ -9,6 +9,7 @@
 % 02/08/20  Forked for YA_FST
 % 02/29/20  Adding input for number of scans as part of subj struct, 
 %   updated to use subj input. Revamped for second analysis. 
+% 03/20/20  Updated to match new (drop first, etc.) design
 
 function make_phys_reg(subj, study)
 %% Check input
@@ -30,6 +31,7 @@ dir_physio_reg = fullfile(dir_physio, 'reg');
 dir_reg = fullfile(dir_subj, 'reg'); 
 scan = study.scan; 
 nscans = scan.first + (scan.epis + scan.silence) * scan.events; 
+nscans_drop = (scan.epis-1) * scan.events; 
 
 %% Read in raw data
 niis = dir(fullfile(dir_physio_reg, '*.nii'));
@@ -48,12 +50,11 @@ for n = 1:length(niis)
     V{n} = reshape(V{n}, size(V{n}, 3), size(V{n}, 2));
 end
 
-
 skipRuns = []; 
 for ii = 1:length(V)
     if length(V{ii}) ~= nscans
         skipRuns = [skipRuns ii];
-        disp('Found an aborted run. Skipping...')
+        disp('Found a terminated run. Skipping...')
     end
 end
 
@@ -74,8 +75,10 @@ end
 for rr = 1:length(P)
     %% Prepare to make regressors
     skipToEnd = 0;
-    firstScans = true(scan.first, 1); % remember the sinister TR bug...
-    template = vertcat(false(scan.silence, 1), true(scan.epis, 1));
+    firstScans = false(scan.first, 1); 
+    % Not modeling first four scans. And remember the sinister TR bug...
+    template = vertcat(false(scan.silence+1, 1), true(scan.epis-1, 1));
+    % All models skip the first TR because of artifact
     extract = vertcat(firstScans, repmat(template, [scan.events, 1])); 
     
 %     if lengths(1) ~= 125 % if we have one too few images...
@@ -93,7 +96,7 @@ for rr = 1:length(P)
             
         end
         
-        assert(size(reg, 1) == subj.nscans)
+        assert(size(reg, 1) == nscans_drop)
     catch
         disp(['Something happened during ' P{rr} ' and the regressor was not created.'])
         skipToEnd = 1;
@@ -102,7 +105,7 @@ for rr = 1:length(P)
     if ~skipToEnd
         disp(['Saving ' P{rr}])
 
-        filename1 = fullfile(dir_reg, ['physio_full_' P{rr} '_00001.txt']);
+        filename1 = fullfile(dir_reg, ['physio_full_' P{rr} '_00007.txt']);
         fid = fopen(filename1, 'w');
         for line = 1:length(reg)
             eline = '\t';
@@ -118,7 +121,7 @@ for rr = 1:length(P)
         end
         fclose(fid); 
 
-        filename2 = fullfile(dir_reg, ['physio_1st_' P{rr} '_00001.txt']);
+        filename2 = fullfile(dir_reg, ['physio_1st_' P{rr} '_00007.txt']);
         fid = fopen(filename2, 'w');
         for line = 1:length(reg)
             eline = '\t';

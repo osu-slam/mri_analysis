@@ -8,10 +8,11 @@
 % MM/DD/YY -- CHANGELOG
 % 02/14/20 -- Cloned for YA_FST. Made into function. 
 % 02/17/20 -- Forked for language (clear) vs noise classification. 
-% 02/18/20 -- Found error in HIT/FA logic! Fixed. 
-% 02/25/20 -- New design. Does it work?
+% 03/17/20 -- New version which tries to account for spatial and temporal
+%   information. The classifier runs on fewer instances of data, but the
+%   instances now have more (temporal) information. 
 
-function searchlight_lang_clear_noise(subj, study, dd)
+function searchlight_lang_clear_noise_spatiotemporal(subj, study, dd)
 %% Check input
 if ~isstruct(subj) || length(subj) ~= 1
     error('Input (subj, study, dd) where subj is a SINGLE struct')
@@ -27,6 +28,8 @@ end
 
 %% Pathing and some parameters
 radius = study.mvpa.radius;
+nscans = (study.scan.epis-1); 
+ncons  = 4; % OR_clear_075, OR_clear_125, SR_clear_075, SR_clear_125
 
 dir_subj = fullfile(study.path, 'data', subj.name); 
 dir_data_MVPA = fullfile(dir_subj, 'MVPA'); 
@@ -56,9 +59,8 @@ load(filename);
 %% More parameters and preallocation
 numvox = length(sphere_XYZ_indices_cell);  %#ok<USENS>
 
-crossval_acc_mat_folds = zeros(subj.runs, numvox);
-
 blocks = 1:subj.runs-length(subj.drop); 
+crossval_acc_mat_folds = zeros(length(blocks), numvox);
 
 %% Read design matrix
 % Read the column-names from the design matrix, to figure out which
@@ -81,8 +83,8 @@ for fold = blocks % for each fold...
     
     block_tst_set = contains(theselabels, tsttag{1});
     
-    lang_set = contains(theselabels, 'clear'); 
-    lang_tst_set = block_tst_set & lang_set; 
+    lng_set = contains(theselabels, 'clear'); 
+    lng_tst_set = block_tst_set & lng_set; 
     
     noi_set = contains(theselabels, 'NOI');
     noi_tst_set = block_tst_set & noi_set; 
@@ -95,36 +97,62 @@ for fold = blocks % for each fold...
         block_trn_set = block_trn_set | contains(theselabels, trntag{ii});
     end
     
-    lang_trn_set = block_trn_set & lang_set; 
+    lng_trn_set = block_trn_set & lng_set; 
     noi_trn_set  = block_trn_set & noi_set; 
     
-    repfactor = sum(lang_trn_set)/sum(noi_trn_set);
+    repfactor = sum(lng_trn_set)/sum(noi_trn_set);
 
 %%% PARFOR START %%%
     parfor voxel_num = 1:numvox
         sphere_inds_for_this_voxel = sphere_XYZ_indices_cell{voxel_num};
+        nvox = length(sphere_inds_for_this_voxel); 
         these_betas = betas_zero_mean(:,sphere_inds_for_this_voxel); %#ok<NODEF>
 
         %% Load data into machine
         % Data
-        lang_trn_betas = these_betas(lang_trn_set, :); 
-        noi_trn_betas  = these_betas(noi_trn_set, :); 
-        noi_trn_betas  = repmat(noi_trn_betas, [repfactor 1]); 
-        Instances_trn  = vertcat(lang_trn_betas, noi_trn_betas); 
+        lng_trn_betas = these_betas(lng_trn_set, :); 
+        noi_trn_betas = these_betas(noi_trn_set, :); 
+        noi_trn_betas = repmat(noi_trn_betas, [repfactor 1]); 
         
-        lang_tst_betas = these_betas(lang_tst_set, :); 
-        noi_tst_betas  = these_betas(noi_tst_set, :); 
-        noi_tst_betas  = repmat(noi_tst_betas, [repfactor 1]); 
-        Instances_tst  = vertcat(lang_tst_betas, noi_tst_betas); 
+        lng_tst_betas = these_betas(lng_tst_set, :);
+        noi_tst_betas = these_betas(noi_tst_set, :); 
+        noi_tst_betas = repmat(noi_tst_betas, [repfactor 1]); 
+        
+        lng_trn_betas2 = zeros(length(find(lng_trn_set))/nscans, nvox*nscans); 
+        noi_trn_betas2 = zeros(length(find(lng_trn_set))/nscans, nvox*nscans); 
+        lng_tst_betas2 = zeros(length(find(lng_tst_set))/nscans, nvox*nscans); 
+        noi_tst_betas2 = zeros(length(find(lng_tst_set))/nscans, nvox*nscans); 
+        
+        for cc = 1:(ncons*(length(blocks)-1))
+            % TRAIN AND TEST SETS
+            idx = ((cc-1)*3)+1:((cc-1)*3)+nscans; 
+            
+            if cc <= ncons
+                select_betas = lng_tst_betas(idx, :)'; 
+                lng_tst_betas2(cc, :) = select_betas(:); 
+
+                select_betas = noi_tst_betas(idx, :)'; 
+                noi_tst_betas2(cc, :) = select_betas(:); 
+            end
+
+            select_betas = lng_trn_betas(idx, :)'; 
+            lng_trn_betas2(cc, :) = select_betas(:); 
+
+            select_betas = noi_trn_betas(idx, :)'; 
+            noi_trn_betas2(cc, :) = select_betas(:); 
+        end 
+        
+        Instances_trn = vertcat(lng_trn_betas2, noi_trn_betas2); 
+        Instances_tst = vertcat(lng_tst_betas2, noi_tst_betas2); 
         
         % Labels
-        Labels_trn_lang =    ones(size(lang_trn_betas, 1), 1);
-        Labels_trn_noi  = -1*ones(size(noi_trn_betas, 1),  1);
-        Labels_tst_lang =    ones(size(lang_tst_betas, 1), 1);
-        Labels_tst_noi  = -1*ones(size(noi_tst_betas, 1),  1);
+        Labels_trn_lng =    ones(size(lng_trn_betas2, 1), 1);
+        Labels_trn_noi = -1*ones(size(noi_trn_betas2, 1),  1);
+        Labels_tst_lng =    ones(size(lng_tst_betas2, 1), 1);
+        Labels_tst_noi = -1*ones(size(noi_tst_betas2, 1),  1);
 
-        Labels_trn = [Labels_trn_lang; Labels_trn_noi];
-        Labels_tst = [Labels_tst_lang; Labels_tst_noi];
+        Labels_trn = [Labels_trn_lng; Labels_trn_noi];
+        Labels_tst = [Labels_tst_lng; Labels_tst_noi];
 
 %         %%%%%%%%LibSVM%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %         model = fitcsvm(Instances_trn,Labels_trn);
@@ -154,7 +182,7 @@ for fold = blocks % for each fold...
     end  %%% End of parfor loop through voxel spheres
 
     %% Merge vectors from each fold into matrices
-    crossval_acc_mat_folds(fold, :)      = crossval_acc_vector;
+    crossval_acc_mat_folds(fold, :) = crossval_acc_vector;
 
 end  %%% End of loop through folds
 
@@ -170,7 +198,7 @@ file = fullfile(dir_design, 'beta_0001.nii');
 V = spm_vol(file);
 
 V.fname = fullfile(dir_data_MVPA, ... 
-    [subj.name '_' design.name '_beta_GNB_lng_clear_noi_rad' num2str(radius) '.nii']);  
+    [subj.name '_' design.name '_beta_GNB_lng_clear_noi_spatiotemporal_rad' num2str(radius) '.nii']);  
 spm_write_vol(V, acc);
 
 end

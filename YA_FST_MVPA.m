@@ -25,28 +25,11 @@ for ii = 1:length(subj)
     %% Subject-specific parameters
     thissubj = subj(ii);
     disp(['MVPA on subject ' thissubj.name '...'])
-    
-    %% Preprocess (SKIP THIS)
-    % Unwarp and realignment
-    % Inspect FM and convert to VDM manually!
-%     disp('Unwarping and realigning data')
-%     cd(dir_preprocess); realign_unwarp_v2_MVPA(thissubj, study)
-%     disp('Done!')
-
-    % Coregistration
-%     disp('Coregistration begins')
-%     cd(dir_preprocess); coregister_MVPA(thissubj, study)
-%     disp('Done coregistering!')
-    
-    % Normalization
-%     disp('Normalizing to MNI-space')
-%     cd(dir_preprocess); normalize_MVPA(thissubj, study)
-%     disp('Done normalizing!')
 
     %% Specify and estimate unsmoothed GLM using FIR
 %     disp(['Specifying 1st level GLM for subject ' thissubj.name '.'])
 %     cd(dir_process); clear_spm_mat(thissubj, study, 5)
-%     cd(dir_MVPA); spec_est_GLM_MVPA_v2(thissubj, study, 5, 1)
+%     cd(dir_MVPA); spec_est_GLM_MVPA_v2(thissubj, study, 5, 0, 1)
 %     disp('Done!')
     
     %% Extract time course information
@@ -63,22 +46,22 @@ for ii = 1:length(subj)
     %% Run the searchlight analysis
     disp(['Running searchlights on ' thissubj.name '...'])
     try parpool(28); catch; delete(gcp('nocreate')); parpool(28); end
+% 
 %     cd(dir_MVPA); searchlight_lang_clear_noise(thissubj, study, 5)
+    cd(dir_MVPA); searchlight_lang_clear_noise_spatiotemporal(thissubj, study, 5)
 %     cd(dir_MVPA); searchlight_lang_clear_noise_SVM(thissubj, study, 5)
 %     cd(dir_MVPA); searchlight_or_sr_clear(thissubj, study, 5)
-    cd(dir_MVPA); searchlight_babble(thissubj, study, 5)
+%     cd(dir_MVPA); searchlight_babble(thissubj, study, 5)
 %     cd(dir_MVPA); searchlight_rate(thissubj, study, 5)
     disp('Done!')
     
     %% Make histograms for each subject!
-%     disp(['Making histograms for ' thissubj.name '...'])
-%     cd(dir_MVPA); plot_acc(thissubj, study, 5) 
-%     disp('Done!')
+    disp(['Making histograms for ' thissubj.name '...'])
+    cd(dir_MVPA); plot_acc(thissubj, study, 5, 'GNB_lng_clear_noi_spatiotemporal') 
+    disp('Done!')
     
 end
 toc
-
-
 
 %% Second-level stats
 % tic

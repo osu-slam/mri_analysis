@@ -10,8 +10,9 @@
 % 02/17/20 -- Forked for language (clear) vs noise classification. 
 % 02/18/20 -- Found error in HIT/FA logic! Fixed. 
 % 02/25/20 -- New design. Does it work?
+% 03/11/20 -- GNB based classifier, multiple features per instance?
 
-function searchlight_lang_clear_noise(subj, study, dd)
+function searchlight_lang_clear_noise_multifeature(subj, study, dd)
 %% Check input
 if ~isstruct(subj) || length(subj) ~= 1
     error('Input (subj, study, dd) where subj is a SINGLE struct')
@@ -101,7 +102,7 @@ for fold = blocks % for each fold...
     repfactor = sum(lang_trn_set)/sum(noi_trn_set);
 
 %%% PARFOR START %%%
-    parfor voxel_num = 1:numvox
+    for voxel_num = 1:numvox
         sphere_inds_for_this_voxel = sphere_XYZ_indices_cell{voxel_num};
         these_betas = betas_zero_mean(:,sphere_inds_for_this_voxel); %#ok<NODEF>
 
@@ -135,7 +136,8 @@ for fold = blocks % for each fold...
 %         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         %%%%%%%%%%%GNB%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        nb = fitcnb(Instances_trn, Labels_trn);
+        nb = fitcnb(Instances_trn, Labels_trn, ... 
+            'HyperparameterOptimizationOptions', 'gridsearch');
 %         nb = NaiveBayes.fit(Instances_trn,Labels_trn);
         Outputs_testing = predict(nb, Instances_tst);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

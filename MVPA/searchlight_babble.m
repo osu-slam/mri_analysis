@@ -8,6 +8,7 @@
 % MM/DD/YY -- CHANGELOG
 % 02/14/20 -- Cloned for YA_FST. Made into function. 
 % 02/14/20 -- Cloned for YA_FST babble, a 3-way classification
+% 03/10/20 -- Fully updated, ready to run!
 
 function searchlight_babble(subj, study, dd)
 %% Check input
@@ -43,22 +44,20 @@ num_mask_voxels = length(mask_idx);
 load(SPM_file)
 
 %% Load TC and spheres
-filename = fullfile(dir_data_MVPA, [subj.name '_zero_meaned_betas.mat']);
+filename = fullfile(dir_data_MVPA, ... 
+    [subj.name '_' design.name '_betas.mat']);
 load(filename)
 
-filename = fullfile(dir_data_MVPA, [subj.name '_spheres_radius' num2str(radius) '.mat']);  
+filename = fullfile(dir_data_MVPA, ...
+    [subj.name '_' design.name '_spheres_radius' num2str(radius) '.mat']);  
 load(filename);  
 
 %% More parameters and preallocation
 numvox = length(sphere_XYZ_indices_cell);  %#ok<USENS>
 
-crossval_ora_HIT_mat_folds = zeros(subj.runs, numvox);
-crossval_sra_HIT_mat_folds = zeros(subj.runs, numvox);
-crossval_ora_FA_mat_folds  = zeros(subj.runs, numvox);
-crossval_sra_FA_mat_folds  = zeros(subj.runs, numvox);
-crossval_acc_mat_folds     = zeros(subj.runs, numvox);
-
-blocks = 1:subj.runs; 
+crossval_acc_mat_folds = zeros(subj.runs, numvox);
+blocks  = 1:(subj.runs - length(subj.drop)); 
+numruns = length(blocks); 
 
 %% Read design matrix
 %%%% Read the column-names from the design matrix, to figure out which
@@ -72,49 +71,43 @@ removethese = regressors | constant;
 theselabels(removethese) = [];
 numbetas = length(theselabels); 
 
-for fold = 1:subj.runs % for each fold... 
+for fold = 1:numruns % for each fold... 
     disp(['Cross-validation fold ' num2str(fold)]);
     
     %% Preallocate 
-    crossval_clear_HIT_vector = zeros(1, numvox);
-    crossval_snr2_HIT_vector = zeros(1, numvox);
-    crossval_clear_FA_vector  = zeros(1, numvox);
-    crossval_snr2_FA_vector  = zeros(1, numvox);
-    crossval_acc_vector     = zeros(1, numvox);
+    crossval_acc_vector = zeros(1, numvox);
     
     %% making training & testing sets 
+    clear_set = contains(theselabels, 'clear'); 
+    snr2_set  = contains(theselabels, 'snr2'); 
+    snrn2_set = contains(theselabels, 'snrn2');
+    
     test = fold; 
     tsttag = {['Sn(' num2str(test) ')']}; 
-    tst_block = contains(theselabels, tsttag{1});
+    block_tst_set = contains(theselabels, tsttag{1});
     
-    clear_tst_set = tst_block & contains(theselabels, 'clear');
-    snr2_tst_set = tst_block & contains(theselabels, 'snr2'); 
-    snr_2_tst_set = tst_block & contains(theselabels, 'snr_2'); 
+    clear_tst_set = block_tst_set & clear_set; 
+    snr2_tst_set  = block_tst_set & snr2_set; 
+    snrn2_tst_set = block_tst_set & snrn2_set; 
     
-    tst_all = clear_tst_set | snr2_tst_set | snr_2_tst_set;
+    tst_all = clear_tst_set | snr2_tst_set | snrn2_tst_set;
     
     train = blocks; train(fold) = []; 
     trntag = cell(length(train), 1); 
-    trn_block = false(1, numbetas); 
+    block_trn_set = false(1, numbetas); 
     for ii = 1:length(train)
         trntag{ii} = ['Sn(' num2str(train(ii)) ')']; 
-        trn_block = trn_block | contains(theselabels, trntag{ii});
+        block_trn_set = block_trn_set | contains(theselabels, trntag{ii});
     end
     
-    clear_trn_set = false(1, numbetas); 
-    snr2_trn_set  = false(1, numbetas); 
-    snr_2_trn_set = false(1, numbetas); 
+    clear_trn_set = block_trn_set & clear_set; 
+    snr2_trn_set  = block_trn_set & snr2_set; 
+    snrn2_trn_set = block_trn_set & snrn2_set; 
     
-    for ii = 1:length(train)
-        clear_trn_set = clear_trn_set | (trn_block & contains(theselabels, 'clear'));
-        snr2_trn_set  = snr2_trn_set  | (trn_block & contains(theselabels, 'snr2'));
-        snr_2_trn_set = snr_2_trn_set | (trn_block & contains(theselabels, 'snr_2'));
-    end
-    
-    trn_all = clear_trn_set | snr2_trn_set | snr_2_trn_set; 
+    trn_all = clear_trn_set | snr2_trn_set | snrn2_trn_set; 
 
 %%% PARFOR START %%%
-    for voxel_num = 1:numvox
+    parfor voxel_num = 1:numvox
         sphere_inds_for_this_voxel = sphere_XYZ_indices_cell{voxel_num};
         these_betas = betas_zero_mean(:,sphere_inds_for_this_voxel); %#ok<NODEF>
 
@@ -126,13 +119,13 @@ for fold = 1:subj.runs % for each fold...
 
         Labels_trn_clear =    ones(length(find(clear_trn_set)), 1);
         Labels_trn_snr2  =  2*ones(length(find(snr2_trn_set)), 1);
-        Labels_trn_snr_2 =  3*ones(length(find(snr_2_trn_set)), 1);
+        Labels_trn_snrn2 =  3*ones(length(find(snrn2_trn_set)), 1);
         Labels_tst_clear = 1*ones(length(find(clear_tst_set)), 1);
         Labels_tst_snr2  = 2*ones(length(find(snr2_tst_set)), 1);
-        Labels_tst_snr_2 = 3*ones(length(find(snr_2_tst_set)), 1);
+        Labels_tst_snrn2 = 3*ones(length(find(snrn2_tst_set)), 1);
 
-        Labels_trn = [Labels_trn_clear; Labels_trn_snr2; Labels_trn_snr_2];
-        Labels_tst = [Labels_tst_clear; Labels_tst_snr2; Labels_tst_snr_2];
+        Labels_trn = [Labels_trn_clear; Labels_trn_snr2; Labels_trn_snrn2];
+        Labels_tst = [Labels_tst_clear; Labels_tst_snr2; Labels_tst_snrn2];
 
 %         %%%%%%%%LibSVM%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %         model = fitcsvm(Instances_trn,Labels_trn);
@@ -149,80 +142,8 @@ for fold = 1:subj.runs % for each fold...
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         % Accuracy
-        Predicting_clear = Outputs_testing(Labels_tst==1); % All data that should be clear
-        Predicting_snr2  = Outputs_testing(Labels_tst==2); % All data that should be snr2
-        Predicting_snr_2 = Outputs_testing(Labels_tst==3); % All data that should be snr-2
-
-        % Accuracies of prediction
-        Hit_clear = sum(Predicting_clear==Labels_tst(Labels_tst== 1))/length(Predicting_clear);
-        Hit_snr2  = sum(Predicting_snr2==Labels_tst(Labels_tst==2))/length(Predicting_snr2);
-        Hit_snr_2  = sum(Predicting_snr_2==Labels_tst(Labels_tst==3))/length(Predicting_snr_2);
-
-        % False alarm rate
-        Predicting_non_clear = Outputs_testing(~(Labels_tst== 1)); % All data that should NOT be clear
-        Predicting_non_snr2  = Outputs_testing(~(Labels_tst== 2)); % All data that should NOT be snr2
-        Predicting_non_snr_2 = Outputs_testing(~(Labels_tst== 3)); % All data that should NOT be snr-2
-
-        % False alarm
-        FA_clear = sum(Predicting_non_clear == 1*ones(length(Predicting_non_clear),1)) / length(Predicting_non_clear);
-        FA_snr2  = sum(Predicting_non_snr2  == 2*ones(length(Predicting_non_snr2),1)) / length(Predicting_non_snr2);
-        FA_snr_2 = sum(Predicting_non_snr_2 == 3*ones(length(Predicting_non_snr_2),1)) / length(Predicting_non_snr_2);
-
         num_testing_points   = size(Instances_tst,1);
         testing_Prop_correct = sum(Outputs_testing == Labels_tst) / num_testing_points;
-
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% store then in the matrix
-
-        % Results are logit compatible
-        if Hit_clear ~=0
-            crossval_clear_HIT_vector(voxel_num) = Hit_clear; 
-        elseif Hit_clear == 0
-            crossval_clear_HIT_vector(voxel_num) = 1/length(Predicting_clear);
-        elseif Hit_clear == 1
-            crossval_clear_HIT_vector(voxel_num) = (length(Predicting_clear)-1)/length(Predicting_clear);
-        end
-
-        if Hit_snr2 ~=0
-            crossval_snr2_HIT_vector(voxel_num) = Hit_snr2; 
-        elseif Hit_snr2 == 0
-            crossval_snr2_HIT_vector(voxel_num) = 1/length(Predicting_snr2);
-        elseif Hit_snr2 == 1
-            crossval_snr2_HIT_vector(voxel_num) = (length(Predicting_snr2)-1)/length(Predicting_snr2);
-        end
-
-        if Hit_snr_2 ~=0
-            crossval_snr_2_HIT_vector(voxel_num) = Hit_snr_2; 
-        elseif Hit_snr_2 == 0
-            crossval_snr_2_HIT_vector(voxel_num) = 1/length(Predicting_snr_2);
-        elseif Hit_snr_2 == 1
-            crossval_snr_2_HIT_vector(voxel_num) = (length(Predicting_snr_2)-1)/length(Predicting_snr_2);
-        end
-        
-        if FA_clear ~=0
-            crossval_clear_FA_vector(voxel_num) = FA_clear;
-        elseif FA_clear ==0
-            crossval_clear_FA_vector(voxel_num) = 1/length(Predicting_non_clear);
-        elseif FA_clear ==1
-            crossval_clear_FA_vector(voxel_num) = (length(Predicting_non_clear)-1)/length(Predicting_non_clear);
-        end
-
-        if FA_snr2 ~=0
-            crossval_snr2_FA_vector(voxel_num) = FA_snr2;
-        elseif FA_snr2 ==0
-            crossval_snr2_FA_vector(voxel_num) = 1/length(Predicting_non_snr2);
-        elseif FA_snr2 ==1
-            crossval_snr2_FA_vector(voxel_num) = (length(Predicting_non_snr2)-1)/length(Predicting_non_snr2);
-        end
-        
-        if FA_snr_2 ~=0
-            crossval_snr_2_FA_vector(voxel_num) = FA_snr_2;
-        elseif FA_snr_2 ==0
-            crossval_snr_2_FA_vector(voxel_num) = 1/length(Predicting_non_snr_2);
-        elseif FA_snr_2 ==1
-            crossval_snr_2_FA_vector(voxel_num) = (length(Predicting_non_snr_2)-1)/length(Predicting_non_snr_2);
-        end
-
-        % Accuracy is not logit-compatible
         crossval_acc_vector(voxel_num) = testing_Prop_correct-(1/3); 
         
         if rem(voxel_num,10000)==0
@@ -233,55 +154,24 @@ for fold = 1:subj.runs % for each fold...
 
     end  %%% End of parfor loop through voxel spheres
 
-    %% Merge vectors from each fold into matrices: PICK UP HERE!
-    crossval_ora_HIT_mat_folds(fold, :) = crossval_clear_HIT_vector;
-    crossval_sra_HIT_mat_folds(fold, :) = crossval_snr2_HIT_vector;
-    crossval_ora_FA_mat_folds(fold, :)  = crossval_clear_FA_vector;
-    crossval_sra_FA_mat_folds(fold, :)  = crossval_snr2_FA_vector;
+    %% Merge vectors from each fold into matrices
     crossval_acc_mat_folds(fold, :)     = crossval_acc_vector;
 
 end  %%% End of loop through folds
 
 %% Take the mean across folds
-ora_HIT_vector = mean(crossval_ora_HIT_mat_folds, 1); 
-sra_HIT_vector = mean(crossval_sra_HIT_mat_folds, 1); 
-ora_FA_vector  = mean(crossval_ora_FA_mat_folds, 1); 
-sra_FA_vector  = mean(crossval_sra_FA_mat_folds, 1); 
-acc_vector     = mean(crossval_acc_mat_folds, 1); 
+acc_vector = mean(crossval_acc_mat_folds, 1); 
 
 %% Convert to brain-space matrix
-ora_HIT = zeros(Vmask.dim);
-sra_HIT = zeros(Vmask.dim);
-ora_FA  = zeros(Vmask.dim);
-sra_FA  = zeros(Vmask.dim);
-acc     = zeros(Vmask.dim);
-
-ora_HIT(mask_idx) = ora_HIT_vector; 
-sra_HIT(mask_idx) = sra_HIT_vector; 
-ora_FA(mask_idx)  = ora_FA_vector; 
-sra_FA(mask_idx)  = sra_FA_vector; 
-acc(mask_idx)     = acc_vector; 
+acc = nan(Vmask.dim);
+acc(mask_idx) = acc_vector; 
 
 %% Save the result
 file = fullfile(dir_design, 'beta_0001.nii'); 
 V = spm_vol(file);
 
-dir_tp = fullfile(dir_data_MVPA, 'BETAS');
-mkdir(dir_tp)
-
-V.fname = fullfile(dir_tp, [subj.name '_BETA_GNB_ora_against_sra_HIT_rad' num2str(radius) '.nii']);  
-spm_write_vol(V, ora_HIT);
-
-V.fname = fullfile(dir_tp, [subj.name '_BETA_GNB_sra_against_ora_HIT_rad' num2str(radius) '.nii']);  
-spm_write_vol(V,mean(sra_HIT,4));
-
-V.fname = fullfile(dir_tp, [subj.name '_BETA_GNB_ora_for_sra_FA_rad' num2str(radius) '.nii']);  
-spm_write_vol(V,mean(ora_FA,4));
-
-V.fname = fullfile(dir_tp, [subj.name '_BETA_GNB_sra_for_ora_FA_rad' num2str(radius) '.nii']);  
-spm_write_vol(V,mean(sra_FA,4));
-
-V.fname = fullfile(dir_tp, [subj.name '_BETA_GNB_ora_sra_rad' num2str(radius) '.nii']);  
-spm_write_vol(V,mean(acc,4));
+V.fname = fullfile(dir_data_MVPA, ... 
+    [subj.name '_' design.name '_beta_GNB_babble_rad' num2str(radius) '.nii']);  
+spm_write_vol(V, acc);
 
 end

@@ -14,7 +14,7 @@ clc; clearvars
 dir_setup = fullfile(pwd, 'setup');
 YA_FST_params
 
-for ii = 2:length(subj)
+for ii = 1:length(subj)
     %% Subject-specific parameters
     thissubj = subj(ii);
     disp(['Unpacking ' thissubj.name '...'])
@@ -49,9 +49,9 @@ for ii = 2:length(subj)
 %     end
     
     %% Make physio regressors
-%     disp('Making physio regressors...')
-%     cd(dir_setup); make_phys_reg(thissubj, study)
-%     disp('Done!')
+    disp('Making physio regressors...')
+    cd(dir_setup); make_phys_reg(thissubj, study)
+    disp('Done!')
     
     %% Make fieldmap
 %     % DONE EXTERNALLY WITH unwarp.sh

@@ -14,8 +14,8 @@ if ~isnumeric(dd)
     error('Input (subj, study, dd) where dd specifies which design')
 end
 
-if ~isstring(class)
-    error('Input (subj, study, dd, class) where contrast specifies which classifier to plot!')
+if ~ischar(class)
+    error('Input (subj, study, dd, class) where class specifies which classifier to plot!')
 end
 
 %% Pathing and parameters
@@ -30,7 +30,7 @@ mask_file  = fullfile(dir_design, 'mask.nii');
 
 %% Code     
 acc_file = fullfile(dir_MVPA, ...
-    [subj.name '_' study.design(dd).name '_beta_GNB_or_sr_clear_rad' num2str(radius) '.nii']); 
+    [subj.name '_' study.design(dd).name '_beta_' class '_rad' num2str(radius) '.nii']); 
 
 Vacc = spm_vol(acc_file);
 yacc = spm_read_vols(Vacc);
@@ -49,9 +49,13 @@ line([0 0], ylim, 'LineWidth', 2, 'Color', 'r');
 line([acc_mean, acc_mean], ylim, 'LineWidth', 2, 'Color', 'g');
 line([acc_median, acc_median], ylim, 'LineWidth', 2, 'Color', 'b');
 legend('acc', 'zero', 'mean', 'median')
-xlabel('Accuracy - 50%')
+if strcmp(class, 'babble')
+    xlabel('Accuracy - 33.33%')
+else
+    xlabel('Accuracy - 50%')
+end
 
-filename = fullfile(dir_docs, [subj.name '_lang_noi']);
+filename = fullfile(dir_docs, [subj.name '_' class]);
 saveas(gcf, filename, 'png')
 hold off
 

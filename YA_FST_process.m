@@ -14,11 +14,10 @@
 % 02/12/20  Forked for YA_FST. Another timing error found, should be
 %   resolved with how I calculated onsets. Adding universal functions.
 % 02/17/20  Modifying 1st level design so it specifies design with 1 run
-%   for visual inspection. 
-% 02/17/20  Re-preprocessed with 3 x 3 x 3.5mm voxels. Rerunning. 
-% 02/18/20  Dropping physio, rerunning
+%   for visual inspection. Re-preprocessed with 3 x 3 x 3.5mm voxels. 
+% 02/18/20  Dropping physio.
 % 02/21/20  New timing scheme, dropped first 5 images
-% 02/24/20  Subject 5915YL had non-unique betas, investigating. 
+% 03/10/20  New design with CONN regressors
 
 clc; clearvars 
 
@@ -27,7 +26,7 @@ dir_batch = pwd;
 dir_process = fullfile(dir_batch, 'process');
 YA_FST_params
 
-for ii = 1:length(subj)
+for ii = 2:length(subj)
     thissubj = subj(ii);
     disp(['Starting to process ' thissubj.name '.'])
     
@@ -38,15 +37,15 @@ for ii = 1:length(subj)
 %     disp('Done!')
         
     %% Specify and estimate GLM using FIR
-%     disp(['Specifying 1st level GLM for subject ' thissubj.name '.'])
-%     cd(dir_process); clear_spm_mat(thissubj, study, 3)
-%     cd(dir_process); spec_est_GLM(thissubj, study, 3, 1, 1)
-%     % Input (thissubj, study, design#, do first run, do interactive)
-%     disp('Done!')
+    disp(['Specifying 1st level GLM for subject ' thissubj.name '.'])
+    cd(dir_process); clear_spm_mat(thissubj, study, 6)
+    cd(dir_process); spec_est_GLM(thissubj, study, 6, 0, 0)
+    % Input (thissubj, study, design#, do first run, do interactive)
+    disp('Done!')
     
     %% Build contrasts
     disp(['Building contrasts for subject ' thissubj.name '.'])
-    cd(dir_process); build_contrasts(thissubj, study, 3)
+    cd(dir_process); build_contrasts(thissubj, study, 6)
     disp('Done!')
     
     %% Calculate AUE (stopped here!)

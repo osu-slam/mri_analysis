@@ -19,7 +19,7 @@ cd ..
 dir_data = fullfile(pwd, 'data'); 
 
 tic
-for ii = 2:length(subj)
+for ii = 1:length(subj)
     %% Setup for this subject
     thissubj = subj(ii);
     dir_subj = fullfile(dir_data, thissubj.name); 
